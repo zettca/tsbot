@@ -19,6 +19,7 @@ var tsBot = new tsClient(SERVER_ADDRESS);  // request sender handler
 
 /* ============================== */
 
+libz.log(new Date().toUTCString());
 libz.log("Starting service at " + SERVER_ADDRESS + "...");
 
 var botCLID;
