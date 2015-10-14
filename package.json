@@ -1,0 +1,14 @@
+{
+  "name": "PlayFun-Teamspeak-Bot",
+  "version": "0.0.0",
+  "description": "PlayFun Teamspeak Server bot stuff.",
+  "main": "bot.js",
+  "repository": "",
+  "author": "Bruno Henriques <bruno@playfun.pt>",
+  "dependencies": {
+    "async": "~0.2.8",
+    "request": "~2.55.0",
+    "node-teamspeak": "~1.0.10"
+  }
+}
+
