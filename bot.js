@@ -15,7 +15,7 @@ const TIME_CHECKUP_TICK = 1 * min;
 const TIME_SPAM_RESET = 20 * min;
 const TIME_AFK_LIMIT = 1 * hour;
 
-process.title = tsbot;
+process.title = "tsbot";
 
 var tsBot = new tsClient(SERVER_ADDRESS);  // request sender handler
 
