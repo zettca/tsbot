@@ -8,12 +8,14 @@ const hour = 60*60*1000;
 const min = 60*1000;
 const sec = 1000;
 
-const SERVER_ADDRESS = process.argv[2] || "ts.playfun.pt";
-const SERVERQUERY_USERNAME = process.argv[3] || "tsbot";
-const SERVERQUERY_PASSWORD = process.argv[4] || "Q3QVodBB";
+const SERVER_ADDRESS = process.argv[2];
+const SERVERQUERY_USERNAME = process.argv[3];
+const SERVERQUERY_PASSWORD = process.argv[4];
 const TIME_CHECKUP_TICK = 1 * min;
 const TIME_SPAM_RESET = 20 * min;
 const TIME_AFK_LIMIT = 1 * hour;
+
+process.title = tsbot;
 
 var tsBot = new tsClient(SERVER_ADDRESS);  // request sender handler
 
