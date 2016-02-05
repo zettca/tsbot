@@ -1,5 +1,5 @@
-var request = require('request');
 var tsClient = require('node-teamspeak');
+var request = require('request');
 var libz = require('./zettca.js');
 
 /* ============================== */
@@ -7,34 +7,39 @@ var libz = require('./zettca.js');
 const hour = 60*60*1000;
 const min = 60*1000;
 const sec = 1000;
-
-const SERVER_ADDRESS = process.argv[2];
-const SERVERQUERY_USERNAME = process.argv[3];
-const SERVERQUERY_PASSWORD = process.argv[4];
 const TIME_CHECKUP_TICK = 1 * min;
 const TIME_SPAM_RESET = 20 * min;
 const TIME_AFK_LIMIT = 1 * hour;
 
-process.title = "tsbot";
+const SERVER_ADDRESS = process.argv[2];
+const SERVERQUERY_USERNAME = process.argv[3];
+const SERVERQUERY_PASSWORD = process.argv[4];
 
+/* ============================== */
+
+if (process.argv.length != 5){
+  libz.log("Wrong argument length!");
+  libz.log("Correct usage: node bot.js [SERVER-ADDRESS] [SQ-USERNAME] [SQ-PASSWORD]");
+  process.exit(1);
+}
+
+process.title = "tsbot";
+console.log();
+libz.log(new Date().toUTCString());
+libz.log("Starting bot service on " + SERVER_ADDRESS + "...");
+
+var botCLID;
+var userList = [];
+var messageList = [];
 var tsBot = new tsClient(SERVER_ADDRESS);  // request sender handler
 
 /* ============================== */
 
-libz.log(new Date().toUTCString());
-libz.log("Starting service at " + SERVER_ADDRESS + "...");
-
-var botCLID;
-var userList = new Array();
-var messageList = new Array();
-
-login();
-
-function login(){
+function startUp(){
   tsBot.send("login", { client_login_name: SERVERQUERY_USERNAME, client_login_password: SERVERQUERY_PASSWORD }, function(err, response, rawResponse){
-    if (err){ libz.log("Error logging in: " + JSON.stringify(err)); process.exit(1); }
+    if (err){ libz.log("Error logging in: " + err.msg); process.exit(1); }
     tsBot.send("use", { sid: 1 }, function(err, response, rawResponse){
-      if (err) libz.log("Error setting default server: " + JSON.stringify(err));
+      if (err){ libz.log("Error setting default server: " + err.msg); process.exit(1); }
       
       libz.log("Logged in on the main server successfully.");
       
@@ -46,36 +51,30 @@ function login(){
       tsBot.send("servernotifyregister", { event: "textserver" });
       tsBot.on("textmessage", handleMessage);
       
-      serverCheckupUpdate();
-      setInterval(serverCheckupUpdate, TIME_CHECKUP_TICK);
+      checkupMainLoop();
+      setInterval(checkupMainLoop, TIME_CHECKUP_TICK);
     });
   });
 }
 
-function serverCheckupUpdate(){
-  userList = new Array();
+function checkupMainLoop(){
+  userList = [];
   
-  try{
-    tsBot.send("clientlist", function(err, response, rawResponse){
-      if (err) libz.log("Error retrieving clientlist: " + JSON.stringify(err));
-      if (!response) return;
-      response.forEach(function(dude, index){
-        if (dude.client_type == 1) return;
-        tsBot.send("clientinfo", { clid: dude.clid }, function(err, response, rawResponse){
-          if (err) libz.log("Error retrieving clientinfo: " + JSON.stringify(err));
-          if (!response) return;
-          var user = response;
-          user.clid = dude.clid;
-          userList.push(user);
-          
-          afkCheckup(user);
-        });
+  tsBot.send("clientlist", function(err, response, rawResponse){
+    if (err) libz.log("Error retrieving clientlist: " + err.msg);
+    if (!Array.isArray(response) || response.length < 2) return;
+    
+    response.forEach(function(dude, index){
+      if (dude.client_type == 1) return;
+      tsBot.send("clientinfo", { clid: dude.clid }, function(err, response, rawResponse){
+        if (err){ libz.log("Error retrieving clientinfo: " + err.msg); return; }
+        var user = response;
+        user.clid = dude.clid;
+        userList.push(user);
+        afkCheckup(user);
       });
     });
-  } catch (e){
-    libz.log("Fatal error running server checkup: " + e.name + " | " +  e.message);
-    login();
-  }
+  });
 }
 
 function afkCheckup(user){
@@ -84,7 +83,7 @@ function afkCheckup(user){
   
   if (user.client_idle_time > TIME_AFK_LIMIT && ignoredCIDs.indexOf(user.cid) == -1){
     tsBot.send("clientmove", { clid: user.clid, cid: afkCID }, function(err, response, rawResponse){
-      if (err) libz.log("Error moving client to AFK: " + JSON.stringify(err));
+      if (err) libz.log("Error moving client to AFK: " + err.msg);
       libz.log(user.client_nickname + " was moved to AFK...");
       tsBot.send("sendtextmessage", { targetmode: 1, target: user.clid, msg: "You were moved to AFK Room for idling for " + libz.timeString(TIME_AFK_LIMIT) + "." });
     });
@@ -93,7 +92,7 @@ function afkCheckup(user){
 
 function handleMessage(message){
   if (message.invokerid == botCLID) return; // ignores own messages
-  libz.log("textmessage["+message.targetmode+"] from " + message.invokername + "("+message.invokerid+"): " + message.msg);
+  libz.log("textmessage["+message.targetmode+"] from " + message.invokername + "["+message.invokerid+"]: " + message.msg);
   
   if (message.targetmode == 1 || message.targetmode == 2){  // Private || Channel message
     processRequests(message.msg, function(output){
@@ -107,7 +106,7 @@ function handleMessage(message){
 function handleGlobalMessage(message){
   const TIME_MUTE = 2*min;
   const TIME_REPOST = 6*sec;
-  const TIME_DISABLE_CHAT = 20*min;
+  const TIME_DISABLE_CHAT = 15*min;
   const MAX_MESSAGES = 10;
   
   message.time = new Date().getTime();
@@ -122,7 +121,7 @@ function handleGlobalMessage(message){
   // User sent 2 msg in a row under TIME_REPOST
   if (thisMsg.invokerid == lastMsg.invokerid && thisMsg.time-lastMsg.time < TIME_REPOST){
     libz.log(thisMsg.invokername + " triggered spam warning...");
-    tsBot.send("sendtextmessage", { targetmode: 1, target: thisMsg.invokerid, msg: "Plim, plim, plim... Your ability to send messages to the server chat was temporairily revoked. Plim plim plim... Don't talk to fast next time!" });
+    tsBot.send("sendtextmessage", { targetmode: 1, target: thisMsg.invokerid, msg: "Your ability to send server messages was temporairily revoked. Please don't talk so fast next time!" });
     tsBot.send("clientinfo", { clid: thisMsg.invokerid }, function(err, response, rawResponse){
       tsBot.send("servergroupaddclient", { sgid: 18, cldbid: response.client_database_id });
       setTimeout(function(){
@@ -132,19 +131,16 @@ function handleGlobalMessage(message){
   }
   
   // Handle global warnings
-  if (messageList.length >= MAX_MESSAGES){
-    messageList.shift();
-    if (thisMsg.time - firstMsg.time < TIME_MUTE){  // Last MAX_MESSAGES messages sent under TIME_MUTE
-      libz.log("Major spam detected. Disabling b_client_server_textmessage_send...");
-      tsBot.send("servergroupaddperm", { sgid: 9, permsid: "b_client_server_textmessage_send", permvalue: 0, permnegated: 0, permskip: 0 });
-      tsBot.send("servergroupaddperm", { sgid: 15, permsid: "b_client_server_textmessage_send", permvalue: 0, permnegated: 0, permskip: 0 });
-      setTimeout(function(){
-        tsBot.send("servergroupaddperm", { sgid: 9, permsid: "b_client_server_textmessage_send", permvalue: 1, permnegated: 0, permskip: 0 });
-        tsBot.send("servergroupaddperm", { sgid: 15, permsid: "b_client_server_textmessage_send", permvalue: 1, permnegated: 0, permskip: 0 });
-      }, TIME_DISABLE_CHAT);
-      tsBot.send("sendtextmessage", { targetmode: 3, target: 1, msg: "Too much chatting detected! Talking permissions temporarily revoked. I'm sorry! ♥" });
-      messageList = [];
-    }
+  if (messageList.length >= MAX_MESSAGES && messageList.shift() && thisMsg.time-firstMsg.time < TIME_MUTE){  // Last MAX_MESSAGES messages sent under TIME_MUTE
+    libz.log("Major spam detected. Disabling b_client_server_textmessage_send...");
+    tsBot.send("sendtextmessage", { targetmode: 3, target: 1, msg: "Plim, plim, plim... Too much chatting detected! Permissions to talk here were temporairily revoked." });
+    tsBot.send("servergroupaddperm", { sgid: 9, permsid: "b_client_server_textmessage_send", permvalue: 0, permnegated: 0, permskip: 0 });
+    tsBot.send("servergroupaddperm", { sgid: 15, permsid: "b_client_server_textmessage_send", permvalue: 0, permnegated: 0, permskip: 0 });
+    setTimeout(function(){
+      tsBot.send("servergroupaddperm", { sgid: 9, permsid: "b_client_server_textmessage_send", permvalue: 1, permnegated: 0, permskip: 0 });
+      tsBot.send("servergroupaddperm", { sgid: 15, permsid: "b_client_server_textmessage_send", permvalue: 1, permnegated: 0, permskip: 0 });
+    }, TIME_DISABLE_CHAT);
+    messageList = [];
   }
 }
 
@@ -244,3 +240,5 @@ function processRequests(msg, callback){
     });
   }
 }
+
+startUp();
