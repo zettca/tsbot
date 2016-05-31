@@ -1,5 +1,6 @@
 var tsClient = require('node-teamspeak');
 var express = require('express');
+var crypto = require('crypto');
 var apis = require('./apis.js');
 
 /* ============================== */
@@ -19,6 +20,8 @@ const SERVERQUERY_PASSWORD = process.argv[4];
 const CHANNEL_AFK_CID = 22;
 const CHANNEL_HOME_CID = 9;
 
+const ADMINS = ["T/72UbiGFUaJgdarQcNElCmAn+g=", "/nevGFqaUM0LRHaHCwdlwN4Dq7A="];
+
 /* ============================== */
 
 if (process.argv.length != 5){
@@ -30,6 +33,7 @@ process.title = "TSBot.js";
 log(new Date().toUTCString());
 log("Starting bot service on " + SERVER_ADDRESS + "...");
 
+var apiKey;
 var botCLID;
 var userList = [];
 var movesList = [];
@@ -55,10 +59,14 @@ function sendCmd(cmd, params, callback){
 /* ============================== */
 
 var app = express();
-app.get("/tsapi/ip/:addr", function(req, res){
+app.get("/tsapi/ip/:addr/:key", function(req, res){
   for (var i=0; i<userList.length; i++){
     if (userList[i].connection_client_ip == req.params.addr){
-      res.send(userList[i]);
+      if (req.params.key === apiKey){
+        res.send(userList[i]);
+      } else{
+        res.send("Invalid API key...");
+      }
     }
   }
 });
@@ -183,7 +191,7 @@ function handleMessage(msg){
   log("textmessage["+msg.targetmode+"] from " + msg.invokername + "["+msg.invokerid+"]: " + msg.msg);
   
   if (msg.targetmode == 1 || msg.targetmode == 2){  // Private || Channel message
-    processRequests(msg.msg, function(output){
+    processRequests(msg, function(output){
       if (output) sendCmd("sendtextmessage", { targetmode: msg.targetmode, target: msg.invokerid, msg: output });
     });
   } else if (msg.targetmode == 3){ // Server message
@@ -232,18 +240,28 @@ function handleGlobalMessage(message){
   }
 }
 
-function processRequests(msg, cbOutput){
-  msg = String(msg);
+function processRequests(message, cbOutput){
+  var msg = String(message.msg);
+  
+  if (ADMINS.indexOf(message.invokeruid) !== -1){
+    apiKey = "";
+  }
   
   if (msg.charAt(0) != "!" && msg.charAt(0) != "."){ // Not command or question
     cbOutput(null);
     return;
   }
-    
-  var separator = msg.indexOf(" ");
   
+  var separator = (msg.indexOf(" ") !== -1) ? msg.indexOf(" ") : msg.length;
   var cmd = msg.substring(1, separator);
   var req = msg.substring(separator+1);
+  
+  if (cmd === "key" && ADMINS.indexOf(message.invokeruid) !== -1){ // Generate API Key
+    var key = crypto.randomBytes(16).toString('base64');
+    cbOutput(key);
+    apiKey = key;
+    return;
+  }
   
   apis.send(cmd, req, function(data){
     cbOutput(data);
