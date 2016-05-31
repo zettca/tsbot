@@ -7,7 +7,7 @@ var request = require('request');
 var API = function(){};
 
 API.prototype.send = function(cmd, req){
-  var link;
+  var link, res;
   
   switch(cmd){
     case "a":
@@ -18,7 +18,8 @@ API.prototype.send = function(cmd, req){
       return calc(req);
     case "ge":
     case "price":
-      return rsGEPrice(req);
+      rsGEPrice(req, function(data){ res = data; });
+      return res;
     case "rt":
     case "redtube":
       link = "http://www.pornhub.com/video/search?search=" + req.replace(/ /g, "+");
@@ -30,10 +31,14 @@ API.prototype.send = function(cmd, req){
     case "all":
     case "stats":
     case "levels":
-      return rsPlayerStats(req);
+      rsPlayerStats(req, function(data){ res = data; });
+      return res;
   }
   
-  if (rsStatIndex(cmd) !== -1) return rsPlayerSkill(cmd, req);
+  if (rsStatIndex(cmd) !== -1){
+    rsPlayerSkill(cmd, req, function(data){ res = data; });
+    return res;
+  }
 };
 
 /* ============================== */
@@ -97,7 +102,7 @@ function calc(req){
 }
 
 
-function rsGEPrice(req){
+function rsGEPrice(req, cb){
   const URL = "http://services.runescape.com/m=itemdb_rs/api/catalogue/detail.json?item=";
   var ID = GENameToID(req);
   
@@ -108,14 +113,14 @@ function rsGEPrice(req){
       var name = body.item.name;
       var price = body.item.current.price;
       var link = "([URL=http://services.runescape.com/m=itemdb_rs/viewitem.ws?obj="+ID+"]source[/URL])";
-      return name + ": " + price + " " + link;
+      cb(name + ": " + price + " " + link);
     }
   });
 }
 
-function rsPlayerStats(req){
+function rsPlayerStats(req, cb){
   const URL = "http://services.runescape.com/m=hiscore/index_lite.ws?player=";
-
+  console.log("getting stats for dude");
   request({ url: URL + req, json: true }, function (error, response, body){
     if (!error && response.statusCode === 200){
       var skills = {};
@@ -123,13 +128,14 @@ function rsPlayerStats(req){
         skills[rsStats[index]] = item.split(',');
       });
       if (skills){
-        return "\n"+skills["attack"][1]+" Att\t"+skills["constitution"][1]+" HP\t"+skills["mining"][1]+" Mi\n"+skills["strength"][1]+" Str\t"+skills["agility"][1]+" Ag\t"+skills["smithing"][1]+" Sm\n"+skills["defence"][1]+" Def\t"+skills["herblore"][1]+" He\t"+skills["fishing"][1]+" Fi\n"+skills["ranged"][1]+" Ra \t"+skills["thieving"][1]+" Th\t"+skills["cooking"][1]+" Co\n"+skills["prayer"][1]+" Pr \t"+skills["crafting"][1]+" Cr\t"+skills["firemaking"][1]+" FM\n"+skills["magic"][1]+" Ma \t"+skills["fletching"][1]+" Fl\t"+skills["woodcutting"][1]+" WC\n"+skills["runecrafting"][1]+" RC \t"+skills["slayer"][1]+" Sl\t"+skills["farming"][1]+" Fa\n"+skills["construction"][1]+" Co \t"+skills["hunter"][1]+" Hu\t"+skills["summoning"][1]+" Su\n"+skills["dungeoneering"][1]+" Dg\t"+skills["divination"][1]+" Di\t"+skills["overall"][1]+" Total";
+        console.log("got stats for dude");
+        cb("\n"+skills["attack"][1]+" Att\t"+skills["constitution"][1]+" HP\t"+skills["mining"][1]+" Mi\n"+skills["strength"][1]+" Str\t"+skills["agility"][1]+" Ag\t"+skills["smithing"][1]+" Sm\n"+skills["defence"][1]+" Def\t"+skills["herblore"][1]+" He\t"+skills["fishing"][1]+" Fi\n"+skills["ranged"][1]+" Ra \t"+skills["thieving"][1]+" Th\t"+skills["cooking"][1]+" Co\n"+skills["prayer"][1]+" Pr \t"+skills["crafting"][1]+" Cr\t"+skills["firemaking"][1]+" FM\n"+skills["magic"][1]+" Ma \t"+skills["fletching"][1]+" Fl\t"+skills["woodcutting"][1]+" WC\n"+skills["runecrafting"][1]+" RC \t"+skills["slayer"][1]+" Sl\t"+skills["farming"][1]+" Fa\n"+skills["construction"][1]+" Co \t"+skills["hunter"][1]+" Hu\t"+skills["summoning"][1]+" Su\n"+skills["dungeoneering"][1]+" Dg\t"+skills["divination"][1]+" Di\t"+skills["overall"][1]+" Total");
       }
     }
   });
 }
 
-function rsPlayerSkill(cmd, req){
+function rsPlayerSkill(cmd, req, cb){
   const URL = "http://services.runescape.com/m=hiscore/index_lite.ws?player=";
   
   if (cmd.indexOf("07") != -1){
@@ -143,7 +149,7 @@ function rsPlayerSkill(cmd, req){
       var stat = body.split('\n')[statIndex];
       if (stat){
         var res = stat.split(',');
-        return rsStats[statIndex] + " level: "+ res[1] + " | " + res[2] + "xp ("+libz.toShortNum(res[2]) + ")";
+        cb(rsStats[statIndex] + " level: "+ res[1] + " | " + res[2] + "xp ("+libz.toShortNum(res[2]) + ")");
       }
     }
   });
@@ -168,3 +174,4 @@ String.prototype.capitalize = function(){
 };
 
 module.exports = new API();
+

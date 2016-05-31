@@ -88,8 +88,8 @@ function updateUserlist(){
     
     for (var i=0; i<res.length; i++){
       if (res[i].client_type == 1) return;
-      sendCmd("clientinfo", { clid: res[i].clid }, function(res){
-        var user = res;
+      sendCmd("clientinfo", { clid: res[i].clid }, function(res2){
+        var user = res2;
         user.clid = res[i].clid;
         userList.push(user);
       });
@@ -232,6 +232,6 @@ function processRequests(msg, cbOutput){
   var cmd = msg.substring(1, separator);
   var req = msg.substring(separator+1);
   
-  var oute = apis.get(cmd, req);
+  var oute = apis.send(cmd, req);
   cbOutput(oute);
 }
