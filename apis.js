@@ -123,7 +123,7 @@ function rsGEPrice(req, cb){
 
 function rsPlayerStats(req, cb){
   const URL = "http://services.runescape.com/m=hiscore/index_lite.ws?player=";
-  console.log("getting stats for dude");
+
   request({ url: URL + req, json: true }, function (error, response, body){
     if (!error && response.statusCode === 200){
       var skills = {};
@@ -131,7 +131,6 @@ function rsPlayerStats(req, cb){
         skills[rsStats[index]] = item.split(',');
       });
       if (skills){
-        console.log("got stats for dude");
         cb("\n"+skills.attack[1]+" Att\t"+skills.constitution[1]+" HP\t"+skills.mining[1]+" Mi\n"+skills.strength[1]+" Str\t"+skills.agility[1]+" Ag\t"+skills.smithing[1]+" Sm\n"+skills.defence[1]+" Def\t"+skills.herblore[1]+" He\t"+skills.fishing[1]+" Fi\n"+skills.ranged[1]+" Ra \t"+skills.thieving[1]+" Th\t"+skills.cooking[1]+" Co\n"+skills.prayer[1]+" Pr \t"+skills.crafting[1]+" Cr\t"+skills.firemaking[1]+" FM\n"+skills.magic[1]+" Ma \t"+skills.fletching[1]+" Fl\t"+skills.woodcutting[1]+" WC\n"+skills.runecrafting[1]+" RC \t"+skills.slayer[1]+" Sl\t"+skills.farming[1]+" Fa\n"+skills.construction[1]+" Co \t"+skills.hunter[1]+" Hu\t"+skills.summoning[1]+" Su\n"+skills.dungeoneering[1]+" Dg\t"+skills.divination[1]+" Di\t"+skills.invention[1]+" In\n"+skills.overall[1]+" Overall | "+skills.overall[2]+"xp");
       }
     }
