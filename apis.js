@@ -6,38 +6,41 @@ var fs = require('fs');
 var request = require('request');
 var API = function(){};
 
-API.prototype.send = function(cmd, req){
+API.prototype.send = function(cmd, req, callback){
   var link, res;
   
   switch(cmd){
     case "a":
     case "ask":
-      return askZ(req);
+      callback(askZ(req));
+      break;
     case "c":
     case "calc":
-      return calc(req);
-    case "ge":
-    case "price":
-      rsGEPrice(req, function(data){ res = data; });
-      return res;
+      callback(calc(req));
+      break;
     case "rt":
     case "redtube":
       link = "http://www.pornhub.com/video/search?search=" + req.replace(/ /g, "+");
-      return "[URL="+link+"]"+link+"[/URL]";
+      callback("[URL="+link+"]"+link+"[/URL]");
+      break;
     case "ph":
     case "pornhub":
       link = "http://www.pornhub.com/video/search?search=" + req.replace(/ /g, "+");
-      return "[URL="+link+"]"+link+"[/URL]";
+      callback("[URL="+link+"]"+link+"[/URL]");
+      break;
+    case "ge":
+    case "price":
+      rsGEPrice(req, function(data){ callback(data); });
+      break;
     case "all":
     case "stats":
     case "levels":
-      rsPlayerStats(req, function(data){ res = data; });
-      return res;
+      rsPlayerStats(req, function(data){ callback(data); });
+      break;
   }
   
   if (rsStatIndex(cmd) !== -1){
-    rsPlayerSkill(cmd, req, function(data){ res = data; });
-    return res;
+    rsPlayerSkill(cmd, req, function(data){ callback(data); });
   }
 };
 

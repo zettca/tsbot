@@ -232,6 +232,7 @@ function processRequests(msg, cbOutput){
   var cmd = msg.substring(1, separator);
   var req = msg.substring(separator+1);
   
-  var oute = apis.send(cmd, req);
-  cbOutput(oute);
+  apis.send(cmd, req, function(data){
+    cbOutput(data);
+  });
 }
