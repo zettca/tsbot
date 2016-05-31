@@ -256,10 +256,14 @@ function processRequests(message, cbOutput){
   var cmd = msg.substring(1, separator);
   var req = msg.substring(separator+1);
   
-  if (cmd === "key" && ADMINS.indexOf(message.invokeruid) !== -1){ // Generate API Key
-    var key = crypto.randomBytes(16).toString('base64');
-    cbOutput(key);
-    apiKey = key;
+  if (cmd === "key" && message.targetmode == 1){
+    if (ADMINS.indexOf(message.invokeruid) !== -1){ // Generate API Key
+      var key = crypto.randomBytes(8).toString('hex');
+      cbOutput(key);
+      apiKey = key;
+    } else{
+      cbOutput("Nice try guy, but nope...");
+    }
     return;
   }
   
