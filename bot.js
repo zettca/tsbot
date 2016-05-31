@@ -34,7 +34,7 @@ var tsBot = new tsClient(SERVER_ADDRESS);  // request sender handler
 
 function sendCmd(cmd, params, callback){
   if (!cmd) return;
-  var ingoredCmds = ["clientinfo"];
+  var ingoredCmds = ["clientlist", "clientinfo"];
   
   tsBot.send(cmd, params, function(error, response, rawResponse){
     if (error) log("Error running command " + cmd + ". Message: " + error.msg);
