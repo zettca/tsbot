@@ -1,5 +1,4 @@
 var tsClient = require('node-teamspeak');
-var libz = require('./zettca.js');
 var apis = require('./apis.js');
 
 /* ============================== */
@@ -19,13 +18,13 @@ const SERVERQUERY_PASSWORD = process.argv[4];
 /* ============================== */
 
 if (process.argv.length != 5){
-  libz.log("Correct usage: node bot.js [SERVER-ADDRESS] [SQ-USERNAME] [SQ-PASSWORD]");
+  log("Correct usage: node bot.js [SERVER-ADDRESS] [SQ-USERNAME] [SQ-PASSWORD]");
   process.exit(1);
 }
 
 process.title = "TSBot";
-libz.log(new Date().toUTCString());
-libz.log("Starting bot service on " + SERVER_ADDRESS + "...");
+log(new Date().toUTCString());
+log("Starting bot service on " + SERVER_ADDRESS + "...");
 
 var botCLID;
 var userList = [];
@@ -38,12 +37,12 @@ function sendCmd(cmd, params, callback){
   var ingoredCmds = ["clientinfo"];
   
   tsBot.send(cmd, params, function(error, response, rawResponse){
-    if (error) libz.log("Error running command " + cmd + ". Message: " + error.msg);
+    if (error) log("Error running command " + cmd + ". Message: " + error.msg);
     if (typeof callback === "function"){
-      if (ingoredCmds.indexOf(cmd) == -1) libz.log("Issuing command " + cmd + " with params: " + JSON.stringify(params).replace(/\n/, ""));
+      if (ingoredCmds.indexOf(cmd) == -1) log("Issuing command " + cmd + " with params: " + JSON.stringify(params).replace(/\n/, ""));
       callback(response);
     } else if (typeof params === "function"){
-      libz.log("Issuing command " + cmd);
+      log("Issuing command " + cmd);
       params(response);
     }
   });
@@ -53,7 +52,7 @@ function sendCmd(cmd, params, callback){
 
 sendCmd("login", { client_login_name: SERVERQUERY_USERNAME, client_login_password: SERVERQUERY_PASSWORD }, function(res){
   sendCmd("use", { sid: 1 }, function(res){
-    libz.log("Logged in on the main server successfully.");
+    log("Logged in on the main server successfully.");
     
     // STARTUP
     sendCmd("whoami", function(res){ botCLID = res.client_id; });
@@ -104,8 +103,8 @@ function afkCheckup(){
   for (var i=0; i<userList.length; i++){
     if (userList[i].client_idle_time > TIME_AFK_LIMIT && ignoredCIDs.indexOf(userList[i].cid) === -1){
       sendCmd("clientmove", { clid: userList[i].clid, cid: afkCID }, function(res){
-        libz.log(userList[i].client_nickname + " was moved to AFK...");
-        sendCmd("sendtextmessage", { targetmode: 1, target: userList[i].clid, msg: "You were moved to AFK Room for idling for " + libz.timeString(TIME_AFK_LIMIT) + "." });
+        log(userList[i].client_nickname + " was moved to AFK...");
+        sendCmd("sendtextmessage", { targetmode: 1, target: userList[i].clid, msg: "You were moved to AFK Room for idling for " + timeString(TIME_AFK_LIMIT) + "." });
       });
     }
   }
@@ -145,7 +144,7 @@ function handleChannelMove(move){
     
     if (dudeID && thisMove.time - movesList[i+1].time <= TIME_MOVESPAM){
       var homeID = 9;
-      libz.log(thisMove.clid + " triggered move spam protection...");
+      log(thisMove.clid + " triggered move spam protection...");
       sendCmd("sendtextmessage", { targetmode: 1, target: thisMove.clid, msg: "Your ability to change channel has been temporairily revoked. Please don't spam channel change next time!" });
       sendCmd("clientinfo", { clid: thisMove.clid }, function(res){
         var user = res;
@@ -155,7 +154,7 @@ function handleChannelMove(move){
           }, TIME_DISABLE_MOVE);
         });
         sendCmd("clientmove", { clid: thisMove.clid, cid: homeID }, function(res){
-          libz.log(user.client_nickname + " was moved to AFK...");
+          log(user.client_nickname + " was moved to AFK...");
         });
       });
     }
@@ -167,7 +166,7 @@ function handleChannelMove(move){
 
 function handleMessage(msg){
   if (msg.invokerid == botCLID) return; // ignores own messages
-  libz.log("textmessage["+msg.targetmode+"] from " + msg.invokername + "["+msg.invokerid+"]: " + msg.msg);
+  log("textmessage["+msg.targetmode+"] from " + msg.invokername + "["+msg.invokerid+"]: " + msg.msg);
   
   if (msg.targetmode == 1 || msg.targetmode == 2){  // Private || Channel message
     processRequests(msg.msg, function(output){
@@ -195,19 +194,19 @@ function handleGlobalMessage(message){
   
   // Server Chat user mute (2 msgs under TIME_REPOST)
   if (thisMsg.invokerid == lastMsg.invokerid && thisMsg.time-lastMsg.time < TIME_REPOST){
-    libz.log(thisMsg.invokername + " triggered chat spam protection...");
+    log(thisMsg.invokername + " triggered chat spam protection...");
     sendCmd("sendtextmessage", { targetmode: 1, target: thisMsg.invokerid, msg: "Your ability to send server messages has been temporairily revoked. Please don't talk so fast next time!" });
-    sendCmd("clientinfo", { clid: thisMsg.invokerid }, function(err, response, rawResponse){
-      sendCmd("servergroupaddclient", { sgid: 18, cldbid: response.client_database_id });
+    sendCmd("clientinfo", { clid: thisMsg.invokerid }, function(res){
+      sendCmd("servergroupaddclient", { sgid: 18, cldbid: res.client_database_id });
       setTimeout(function(){
-        sendCmd("servergroupdelclient", { sgid: 18, cldbid: response.client_database_id });
+        sendCmd("servergroupdelclient", { sgid: 18, cldbid: res.client_database_id });
       }, 2*TIME_DISABLE_CHAT);
     });
   }
   
   // Server Chat global mutes
   if (messageList.length >= MAX_MESSAGES && messageList.shift() && thisMsg.time-firstMsg.time < TIME_MUTE){  // Last MAX_MESSAGES messages sent under TIME_MUTE
-    libz.log("Major spam detected. Disabling b_client_server_textmessage_send...");
+    log("Major spam detected. Disabling b_client_server_textmessage_send...");
     sendCmd("sendtextmessage", { targetmode: 3, target: 1, msg: "Plim, plim, plim... Too much chatting detected! Permissions to talk here were temporairily revoked." });
     sendCmd("servergroupaddperm", { sgid: 9, permsid: "b_client_server_textmessage_send", permvalue: 0, permnegated: 0, permskip: 0 });
     sendCmd("servergroupaddperm", { sgid: 15, permsid: "b_client_server_textmessage_send", permvalue: 0, permnegated: 0, permskip: 0 });
@@ -235,4 +234,27 @@ function processRequests(msg, cbOutput){
   apis.send(cmd, req, function(data){
     cbOutput(data);
   });
+}
+
+/* ============================== */
+
+function log(msg){
+  console.log('['+getTime()+'] ' + msg);
+}
+
+function getTime(){
+  var time = new Date();
+  var hour = (time.getUTCHours()>9) ? time.getUTCHours() : '0'+time.getUTCHours();
+  var mins = (time.getUTCMinutes()>9) ? time.getUTCMinutes() : '0'+time.getUTCMinutes();
+  var secs = (time.getUTCSeconds()>9) ? time.getUTCSeconds() : '0'+time.getUTCSeconds();
+  return hour+':'+mins+':'+secs;
+}
+
+function timeString(time){
+  var timeDesc = ["ms", "seconds", "minutes", "hours", "days"];
+  var timeDiv = [1000, 60, 60, 24];
+  if (isNaN(time)) return;
+  
+  for (var i=0; time>=timeDiv[i] && i<timeDiv.length; time /= timeDiv[i++]); // phew
+  return (time != 1) ? time + " " + timeDesc[i] : time + " " + timeDesc[i].substring(0, timeDesc[i].length-1);
 }
