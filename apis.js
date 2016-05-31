@@ -51,7 +51,7 @@ API.prototype.send = function(cmd, req, callback){
 function rsStatIndex(skill){
   const rsStatsShort = [["total", "oa"],["att", "at"],["def", "de"],["str", "st"],["hp"],["range", "ra", "rang"],["pray", "pr"],["mage", "ma"],["cook"],["wood", "wc", "wo"],["fletch", "fl"],["fish", "fi"],["fire", "fm"],["craft", "cr"],["smith", "sm"],["mine", "mi"],["herb", "he"],["agil", "ag"],["thiev", "th"],["slay", "sl"],["farm", "fa"],["rc", "ru"],["hunt", "hu"],["cons", "construct"],["summon", "su"],["dungeon", "du", "dung"],["div", "di"],["invent", "in"],["bh"],["bhr"],["dt", "dominion"],[],["cw"],["baa"],["bad"],["bac"],["bah"],["duel"],["mob"],[],["fog"],["ggr"],["gga"],[],[],[],[],["heistg"],["heistr"],[]];
   for (var i=0; i<rsStats.length; i++)
-    if (rsStats[i].indexOf(skill) !== -1) return i;
+    if (rsStats[i] == skill.toLowerCase()) return i;
   for (var i=0; i<rsStatsShort.length; i++)
     if (rsStatsShort[i].indexOf(skill) !== -1) return i;
   return -1;
