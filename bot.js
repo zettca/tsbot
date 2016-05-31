@@ -1,4 +1,5 @@
 var tsClient = require('node-teamspeak');
+var express = require('express');
 var apis = require('./apis.js');
 
 /* ============================== */
@@ -15,6 +16,9 @@ const SERVER_ADDRESS = process.argv[2];
 const SERVERQUERY_USERNAME = process.argv[3];
 const SERVERQUERY_PASSWORD = process.argv[4];
 
+const CHANNEL_AFK_CID = 22;
+const CHANNEL_HOME_CID = 9;
+
 /* ============================== */
 
 if (process.argv.length != 5){
@@ -22,7 +26,7 @@ if (process.argv.length != 5){
   process.exit(1);
 }
 
-process.title = "TSBot";
+process.title = "TSBot.js";
 log(new Date().toUTCString());
 log("Starting bot service on " + SERVER_ADDRESS + "...");
 
@@ -39,14 +43,26 @@ function sendCmd(cmd, params, callback){
   tsBot.send(cmd, params, function(error, response, rawResponse){
     if (error) log("Error running command " + cmd + ". Message: " + error.msg);
     if (typeof callback === "function"){
-      if (ingoredCmds.indexOf(cmd) == -1) log("Issuing command " + cmd + " with params: " + JSON.stringify(params).replace(/\n/, ""));
+      if (ingoredCmds.indexOf(cmd) === -1) log("Issuing command " + cmd + " with params: " + JSON.stringify(params).replace(/\n/, ""));
       callback(response);
     } else if (typeof params === "function"){
-      log("Issuing command " + cmd);
+      if (ingoredCmds.indexOf(cmd) === -1) log("Issuing command " + cmd);
       params(response);
     }
   });
 }
+
+/* ============================== */
+
+var app = express();
+app.get("/tsapi/ip/:addr", function(req, res){
+  for (var i=0; i<userList.length; i++){
+    if (userList[i].connection_client_ip == req.params.addr){
+      res.send(userList[i]);
+    }
+  }
+});
+app.listen(9980);
 
 /* ============================== */
 
@@ -97,12 +113,11 @@ function updateUserlist(){
 }
 
 function afkCheckup(){
-  var afkCID = 22;
-  var ignoredCIDs = [afkCID, 63, 302, 321];
+  var ignoredCIDs = [CHANNEL_AFK_CID, 63, 302, 321];
   
   for (var i=0; i<userList.length; i++){
     if (userList[i].client_idle_time > TIME_AFK_LIMIT && ignoredCIDs.indexOf(userList[i].cid) === -1){
-      sendCmd("clientmove", { clid: userList[i].clid, cid: afkCID }, function(res){
+      sendCmd("clientmove", { clid: userList[i].clid, cid: CHANNEL_AFK_CID }, function(res){
         log(userList[i].client_nickname + " was moved to AFK...");
         sendCmd("sendtextmessage", { targetmode: 1, target: userList[i].clid, msg: "You were moved to AFK Room for idling for " + timeString(TIME_AFK_LIMIT) + "." });
       });
@@ -143,7 +158,6 @@ function handleChannelMove(move){
     }
     
     if (dudeID && thisMove.time - movesList[i+1].time <= TIME_MOVESPAM){
-      var homeID = 9;
       log(thisMove.clid + " triggered move spam protection...");
       sendCmd("sendtextmessage", { targetmode: 1, target: thisMove.clid, msg: "Your ability to change channel has been temporairily revoked. Please don't spam channel change next time!" });
       sendCmd("clientinfo", { clid: thisMove.clid }, function(res){
@@ -153,7 +167,7 @@ function handleChannelMove(move){
             sendCmd("servergroupdelclient", { sgid: 24, cldbid: user.client_database_id });
           }, TIME_DISABLE_MOVE);
         });
-        sendCmd("clientmove", { clid: thisMove.clid, cid: homeID }, function(res){
+        sendCmd("clientmove", { clid: thisMove.clid, cid: CHANNEL_HOME_CID }, function(res){
           log(user.client_nickname + " was moved to AFK...");
         });
       });

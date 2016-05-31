@@ -3,12 +3,11 @@
   "version": "0.0.0",
   "description": "PlayFun Teamspeak Server bot stuff.",
   "main": "bot.js",
-  "repository": "",
+  "repository": "https://github.com/zettca/tsbot",
   "author": "Bruno Henriques <bruno@playfun.pt>",
   "dependencies": {
-    "async": "~0.2.8",
-    "request": "~2.55.0",
+    "express": "~4.13.4",
+    "request": "~2.72.0",
     "node-teamspeak": "~1.0.10"
   }
 }
-
