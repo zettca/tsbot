@@ -151,7 +151,6 @@ function handleChannelMove(move){
   var lastMove = movesList[movesList.length-1];
   if (lastMove.ctid == move.ctid && lastMove.clid == move.clid) return;
   
-  console.log(move);
   movesList.push(move);
   
   if (movesList.length >= 4){ // Check last 4 moves

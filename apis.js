@@ -4,9 +4,9 @@ const askOpts = ["Yes", "No", "Maybe", "Penis is the answer", "There is no answe
 var fs = require('fs');
 var request = require('request');
 
-var API = function(){};
+var API = {};
 
-API.prototype.send = function(cmd, req, callback){
+API.send = function(cmd, req, callback){
   var link;
   
   switch(cmd){
@@ -161,16 +161,15 @@ function rsPlayerSkill(cmd, req, cb){
 
 function GENameToID(itemName){
   if (!isNaN(itemName)) return itemName; // is ID
-  
   var itemList = JSON.parse(fs.readFileSync("itemlist.json", "utf8"));
   
-  for (var i=0; i<itemList.length; i++) // exact search
-    if (itemList[i][1].toLowerCase() == itemName.toLowerCase())
-      return itemList[i][0];
+  for (var prop in itemList)  // exact search
+    if (itemList[prop].toLowerCase() == itemName.toLowerCase())
+      return itemList[prop];
   
-  for (var i=0; i<itemList.length; i++) // contains search
-    if (itemList[i][1].toLowerCase().indexOf(itemName.toLowerCase()) != -1)
-      return itemList[i][0];
+  for (var prop in itemList)  // contains search
+    if (itemList[prop].toLowerCase().indexOf(itemName.toLowerCase()) !== -1)
+      return itemList[prop];
 }
 
 function toShortNum(num){
@@ -186,5 +185,4 @@ String.prototype.capitalize = function(){
     return this.charAt(0).toUpperCase() + this.slice(1);
 };
 
-
-module.exports = new API();
+module.exports = API;
