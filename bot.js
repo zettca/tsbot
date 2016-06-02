@@ -239,15 +239,15 @@ function handleGlobalMessage(message){
   }
 }
 
-function processRequests(message, cbOutput){
-  var msg = String(message.msg);
+function processRequests(message, callback){
+  var link, msg = String(message.msg);
   
   if (ADMINS.indexOf(message.invokeruid) !== -1){
     apiKey = "";
   }
   
   if (msg.charAt(0) != "!" && msg.charAt(0) != "."){ // Not command or question
-    cbOutput(null);
+    callback(null);
     return;
   }
   
@@ -258,17 +258,48 @@ function processRequests(message, cbOutput){
   if (cmd === "key" && message.targetmode == 1){
     if (ADMINS.indexOf(message.invokeruid) !== -1){ // Generate API Key
       var key = crypto.randomBytes(8).toString('hex');
-      cbOutput(key);
+      callback(key);
       apiKey = key;
     } else{
-      cbOutput("Nice try guy, but nope...");
+      callback("Nice try guy, but nope...");
     }
     return;
   }
   
-  apis.send(cmd, req, function(data){
-    cbOutput(data);
-  });
+  switch(cmd){
+    case "a":
+    case "ask":
+      callback(apis.askZ(req));
+      break;
+    case "c":
+    case "calc":
+      callback(apis.calc(req));
+      break;
+    case "rt":
+    case "redtube":
+      link = "http://www.redtube.com/?search=" + req.replace(/ /g, "+");
+      callback("[URL="+link+"]"+link+"[/URL]");
+      break;
+    case "ph":
+    case "pornhub":
+      link = "http://www.pornhub.com/video/search?search=" + req.replace(/ /g, "+");
+      callback("[URL="+link+"]"+link+"[/URL]");
+      break;
+    case "ge":
+    case "price":
+      apis.rsGEPrice(req, function(data){ callback(data); });
+      break;
+    case "all":
+    case "stats":
+    case "levels":
+      apis.rsPlayerStats(req, function(data){ callback(data); });
+      break;
+  }
+  
+  if (apis.rsStatIndex(cmd) !== -1){
+    apis.rsPlayerSkill(cmd, req, function(data){ callback(data); });
+  }
+  
 }
 
 /* ============================== */
