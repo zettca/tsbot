@@ -1,4 +1,4 @@
-const rsStats = ["overall","attack","defence","strength","constitution","ranged","prayer","magic","cooking","woodcutting","fletching","fishing","firemaking","crafting","smithing","mining","herblore","agility","thieving","slayer","farming","runecrafting","hunter","construction","summoning","dungeoneering","divination","invention","bounty_hunter","bounty_hunter_rouges","dominion_tower","crucible","castle_wars","BA_attackers","BA_defenders","BA_collectors","BA_healers","duel_tournaments","mobilising_armies","conquest","fist_of_guthix","GG_resource","GG_athletics","WE2AC","WE2BC","WE2AK","WE2BK","heist_guard","heist_robber","CFP"];
+const rsStats = [["overall","total","oa"],["attack","att","at"],["defence","def","de"],["strength","str","st"],["constitution","hp"],["ranged","range","ra","rang"],["prayer","pray","pr"],["magic","mage","ma"],["cooking","cook"],["woodcutting","wood","wc","wo"],["fletching","fletch","fl"],["fishing","fish","fi"],["firemaking","fire","fm"],["crafting","craft","cr"],["smithing","smith","sm"],["mining","mine","mi"],["herblore","herb","he"],["agility","agil","ag"],["thieving","thiev","th"],["slayer","slay","sl"],["farming","farm","fa"],["runecrafting","rc","ru"],["hunter","hunt","hu"],["construction","cons","construct"],["summoning","summon","su"],["dungeoneering","dungeon","du","dung"],["divination","div","di"],["invention","invent","in"],["bounty_hunter","bh"],["bounty_hunter_rouges","bhr"],["dominion_tower","dt","dominion"],["crucible",],["castle_wars","cw"],["BA_attackers","baa"],["BA_defenders","bad"],["BA_collectors","bac"],["BA_healers","bah"],["duel_tournaments","duel"],["mobilising_armies","mob"],["conquest",],["fist_of_guthix","fog"],["GG_resource","ggr"],["GG_athletics","gga"],["WE2AC",],["WE2BC",],["WE2AK",],["WE2BK",],["heist_guard","heistg"],["heist_robber","heistr"],["CFP",],["WE31"],["WE32"]];
 const askOpts = ["Yes", "No", "Maybe", "Penis is the answer", "There is no answer to that", "Sex will solve that", "Crying will solve that", "Obviously", "Obviously not", "Never", "Everyday", "Keep dreaming...", "Ask somebody dumb instead", "Ask a human instead", "You shouldn't ask such things", "Google it", "The answer is obvious"];
 
 var fs = require('fs');
@@ -49,11 +49,8 @@ API.send = function(cmd, req, callback){
 
 
 function rsStatIndex(skill){
-  const rsStatsShort = [["total", "oa"],["att", "at"],["def", "de"],["str", "st"],["hp"],["range", "ra", "rang"],["pray", "pr"],["mage", "ma"],["cook"],["wood", "wc", "wo"],["fletch", "fl"],["fish", "fi"],["fire", "fm"],["craft", "cr"],["smith", "sm"],["mine", "mi"],["herb", "he"],["agil", "ag"],["thiev", "th"],["slay", "sl"],["farm", "fa"],["rc", "ru"],["hunt", "hu"],["cons", "construct"],["summon", "su"],["dungeon", "du", "dung"],["div", "di"],["invent", "in"],["bh"],["bhr"],["dt", "dominion"],[],["cw"],["baa"],["bad"],["bac"],["bah"],["duel"],["mob"],[],["fog"],["ggr"],["gga"],[],[],[],[],["heistg"],["heistr"],[]];
   for (var i=0; i<rsStats.length; i++)
-    if (rsStats[i] == skill.toLowerCase()) return i;
-  for (var i=0; i<rsStatsShort.length; i++)
-    if (rsStatsShort[i].indexOf(skill) !== -1) return i;
+    if (rsStats[i].indexOf(skill) !== -1) return i;
   return -1;
 }
 
@@ -107,39 +104,42 @@ function calc(req){
 }
 
 
-function rsGEPrice(req, cb){
+function rsGEPrice(req, callback){
   const URL = "http://services.runescape.com/m=itemdb_rs/api/catalogue/detail.json?item=";
-  var ID = GENameToID(req);
+  var id = GENameToID(req);
   
-  if (!ID) return "[u]" + req + "[/u] is not in my database."; 
+  if (!id) return "[u]" + req + "[/u] is not in my database."; 
   
-  request({ url: URL + ID, json: true }, function (error, response, body){
+  request({ url: URL + id, json: true }, function (error, response, body){
     if (!error && response.statusCode === 200){
       var name = body.item.name;
       var price = body.item.current.price;
-      var link = "([URL=http://services.runescape.com/m=itemdb_rs/viewitem.ws?obj="+ID+"]source[/URL])";
-      cb(name + ": " + price + " " + link);
+      var link = "([URL=http://services.runescape.com/m=itemdb_rs/viewitem.ws?obj="+id+"]source[/URL])";
+      callback(name + ": " + price + " " + link);
     }
   });
 }
 
-function rsPlayerStats(req, cb){
+function rsPlayerStats(req, callback){
   const URL = "http://services.runescape.com/m=hiscore/index_lite.ws?player=";
 
   request({ url: URL + req, json: true }, function (error, response, body){
     if (!error && response.statusCode === 200){
       var skills = {};
       body.split('\n').forEach(function(item, index){
-        skills[rsStats[index]] = item.split(',');
+        if (rsStats[index]){
+          skills[rsStats[index][0]] = item.split(',');
+          skills[rsStats[index][0]][1] = parseInt(skills[rsStats[index][0]][1]) || 1;
+        }
       });
       if (skills){
-        cb("\n"+skills.attack[1]+" Att\t"+skills.constitution[1]+" HP\t"+skills.mining[1]+" Mi\n"+skills.strength[1]+" Str\t"+skills.agility[1]+" Ag\t"+skills.smithing[1]+" Sm\n"+skills.defence[1]+" Def\t"+skills.herblore[1]+" He\t"+skills.fishing[1]+" Fi\n"+skills.ranged[1]+" Ra \t"+skills.thieving[1]+" Th\t"+skills.cooking[1]+" Co\n"+skills.prayer[1]+" Pr \t"+skills.crafting[1]+" Cr\t"+skills.firemaking[1]+" FM\n"+skills.magic[1]+" Ma \t"+skills.fletching[1]+" Fl\t"+skills.woodcutting[1]+" WC\n"+skills.runecrafting[1]+" RC \t"+skills.slayer[1]+" Sl\t"+skills.farming[1]+" Fa\n"+skills.construction[1]+" Co \t"+skills.hunter[1]+" Hu\t"+skills.summoning[1]+" Su\n"+skills.dungeoneering[1]+" Dg\t"+skills.divination[1]+" Di\t"+skills.invention[1]+" In\n"+skills.overall[1]+" Overall | "+toShortNum(skills.overall[2])+" xp");
+        callback("\n"+skills.attack[1]+" Att\t"+skills.constitution[1]+" HP\t"+skills.mining[1]+" Mi\n"+skills.strength[1]+" Str\t"+skills.agility[1]+" Ag\t"+skills.smithing[1]+" Sm\n"+skills.defence[1]+" Def\t"+skills.herblore[1]+" He\t"+skills.fishing[1]+" Fi\n"+skills.ranged[1]+" Ra \t"+skills.thieving[1]+" Th\t"+skills.cooking[1]+" Co\n"+skills.prayer[1]+" Pr \t"+skills.crafting[1]+" Cr\t"+skills.firemaking[1]+" FM\n"+skills.magic[1]+" Ma \t"+skills.fletching[1]+" Fl\t"+skills.woodcutting[1]+" WC\n"+skills.runecrafting[1]+" RC \t"+skills.slayer[1]+" Sl\t"+skills.farming[1]+" Fa\n"+skills.construction[1]+" Co \t"+skills.hunter[1]+" Hu\t"+skills.summoning[1]+" Su\n"+skills.dungeoneering[1]+" Dg\t"+skills.divination[1]+" Di\t"+skills.invention[1]+" In\n"+skills.overall[1]+" Overall | "+toShortNum(skills.overall[2])+" xp");
       }
     }
   });
 }
 
-function rsPlayerSkill(cmd, req, cb){
+function rsPlayerSkill(cmd, req, callback){
   const URL = "http://services.runescape.com/m=hiscore/index_lite.ws?player=";
   
   if (cmd.indexOf("07") != -1){
@@ -153,23 +153,25 @@ function rsPlayerSkill(cmd, req, cb){
       var stat = body.split('\n')[statIndex];
       if (stat){
         var res = stat.split(',');
-        cb(rsStats[statIndex].capitalize() + " level: "+ res[1] + " | " + res[2] + "xp ("+toShortNum(res[2]) + ")");
+        callback(rsStats[statIndex][0].capitalize() + " level: "+ res[1] + " | " + res[2] + "xp ("+toShortNum(res[2]) + ")");
       }
     }
   });
 }
 
-function GENameToID(itemName){
-  if (!isNaN(itemName)) return itemName; // is ID
+function GENameToID(itemSearch){
+  if (!isNaN(itemSearch)) return itemSearch; // is ID
   var itemList = JSON.parse(fs.readFileSync("itemlist.json", "utf8"));
   
   for (var prop in itemList)  // exact search
-    if (itemList[prop].toLowerCase() == itemName.toLowerCase())
-      return itemList[prop];
+    if (itemList[prop].toLowerCase() === itemSearch.toLowerCase())
+      return prop;
   
   for (var prop in itemList)  // contains search
-    if (itemList[prop].toLowerCase().indexOf(itemName.toLowerCase()) !== -1)
-      return itemList[prop];
+    if (itemList[prop].toLowerCase().indexOf(itemSearch.toLowerCase()) !== -1)
+      return prop;
+
+  return null;
 }
 
 function toShortNum(num){
