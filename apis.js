@@ -20,7 +20,7 @@ API.prototype.send = function(cmd, req, callback){
       break;
     case "rt":
     case "redtube":
-      link = "http://www.pornhub.com/video/search?search=" + req.replace(/ /g, "+");
+      link = "http://www.redtube.com/?search=" + req.replace(/ /g, "+");
       callback("[URL="+link+"]"+link+"[/URL]");
       break;
     case "ph":
