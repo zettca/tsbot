@@ -121,7 +121,7 @@ function mainCheckupLoop(){
     for (let i=0; i<res.length; i++){ // update userList
       if (res[i].client_type == 1) return;
       sendCmd("clientinfo", { clid: res[i].clid }, function(user){
-        user.client_id = res[i].clid;
+        user.clid = res[i].clid;
         userList.push(user);
         checkAFK(user);
       });
