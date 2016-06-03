@@ -5,22 +5,15 @@ var express = require('express');
 var crypto = require('crypto');
 var apis = require('./apis.js');
 
-/* ========== DEFINITIONS ========== */
+const SERVER_ADDRESS = process.argv[2];
+const SERVERQ_USERNAME = process.argv[3];
+const SERVERQ_PASSWORD = process.argv[4];
 
 const sec = 1000;
 const min = 60*sec;
 const hour = 60*min;
 
-const TIME_CHECKUP_TICK = 20*sec;
-const TIME_SPAM_RESET = 20*min;
-const TIME_AFK_LIMIT = 1*hour;
-
-const SERVER_ADDRESS = process.argv[2];
-const SERVERQ_USERNAME = process.argv[3];
-const SERVERQ_PASSWORD = process.argv[4];
-
-const CID_AFK = 22;
-const CID_HOME = 9;
+const TIME_CHECKUP_TICK = 10*sec;
 
 const ADMINS = ["T/72UbiGFUaJgdarQcNElCmAn+g=", "/nevGFqaUM0LRHaHCwdlwN4Dq7A="];
 
@@ -35,7 +28,8 @@ process.title = "TSBot.js";
 log(new Date().toUTCString());
 log("Starting bot service on " + SERVER_ADDRESS + "...");
 
-var apiKey, botCLID;
+var apiKey = crypto.randomBytes(8).toString('hex');
+var botCLID;
 var userList = [];
 var movesList = [];
 var messageList = [];
@@ -64,14 +58,33 @@ function sendCmd(cmd, params, callback){
 /* ========== API SERVER ========== */
 
 var app = express();
-app.get("/tsapi/ip/:addr/:key", function(req, res){
+var router = express.Router();
+
+router.use(function(req, res, next){
+  next();
+});
+
+router.get("/", function(req, res){
+  res.send({timestamp: Date.now(), message: "Welcome to the TSBot API"});
+});
+
+router.route("/ip/:key/:addr").get(function(req, res){
+  if (req.params.key != apiKey){
+    res.send({error: {code: 401, msg: "Invalid API key."}});
+    return;
+  }
   for (let i=0; i<userList.length; i++){
     if (userList[i].connection_client_ip == req.params.addr){
-      res.send((req.params.key == apiKey) ? userList[i] : "Invalid API key!");
+      res.send(userList[i]);
+      return;
     }
   }
+  res.send({error: {code: 404, msg: "Address not found!", params: req.params}});
 });
-app.listen(9980);
+
+app.use("/tsapi", router);
+
+app.listen(process.env.PORT || 8081 || 9980);
 
 /* ========== BOT CONNECTION SETUP ========== */
 
@@ -117,6 +130,8 @@ function mainCheckupLoop(){
 }
 
 function checkAFK(user){
+  const CID_AFK = 22;
+  const TIME_AFK_LIMIT = 1*hour;
   let skipCIDs = [CID_AFK, 63, 302, 321];
   
   if (user.client_idle_time > TIME_AFK_LIMIT && skipCIDs.indexOf(user.cid) === -1){
@@ -184,6 +199,7 @@ function handleGlobalMessage(msg){
 }
 
 function handleChannelMove(move){
+  const CID_HOME = 9;
   const TIME_CLEAR = 2*min;
   const TIME_MOVESPAM = 6*sec;
   const TIME_DISABLE_MOVE = 10*min;
