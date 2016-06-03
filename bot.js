@@ -110,7 +110,7 @@ sendCmd("login", { client_login_name: SERVERQ_USERNAME, client_login_password: S
   });
 });
 
-/* ============================== */
+/* ========== MAIN TEAMSPEAK CHECKUPS ========== */
 
 function mainCheckupLoop(){
   userList = [];
@@ -119,7 +119,7 @@ function mainCheckupLoop(){
     if (!Array.isArray(res) || res.length < 2) return;
     
     for (let i=0; i<res.length; i++){ // update userList
-      if (res[i].client_type == 1) return;
+      if (res[i].client_type == 1) continue;
       sendCmd("clientinfo", { clid: res[i].clid }, function(user){
         user.clid = res[i].clid;
         userList.push(user);
@@ -142,7 +142,7 @@ function checkAFK(user){
   }
 }
 
-/* ============================== */
+/* ========== TEAMSPEAK EVENT HANDLERS ========== */
 
 function handleMessage(msg){
   if (msg.invokerid == botCLID) return; // ignores own messages
