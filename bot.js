@@ -321,6 +321,6 @@ function timeString(time){
   let timeDesc = ["ms", "seconds", "minutes", "hours", "days", "weeks", "years"];
   let timeDiv = [1000, 60, 60, 24, 7, 52.15];
   
-  for (var i=0; time>=timeDiv[i] && i<timeDiv.length; time /= timeDiv[i++]); // phew
-  return time + " " + (time !== 1) ? timeDesc[i] : timeDesc[i].substring(0, timeDesc[i].length-1);
+  for (var i=0; time>=timeDiv[i]; time /= timeDiv[i++]); // phew
+  return time + " " + ((time !== 1) ? timeDesc[i] : timeDesc[i].substring(0, timeDesc[i].length-1));
 }
