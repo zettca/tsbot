@@ -4,6 +4,7 @@ var tsClient = require('node-teamspeak');
 var express = require('express');
 var crypto = require('crypto');
 var apis = require('./apis.js');
+//var config = require('./tsconfig.json');
 
 const SERVER_ADDRESS = process.argv[2];
 const SERVERQ_USERNAME = process.argv[3];
@@ -86,8 +87,7 @@ router.route("/ip/:key/:addr").get(function(req, res){
     return;
   }
   let user = getClientBy("connection_client_ip", req.params.addr);
-  if (user) res.send(user);
-  res.send({error: {code: 404, msg: "Address not found!", params: req.params}});
+  res.send(user ? user : {error: {code: 404, msg: "Address not found!", params: req.params}});
 });
 
 app.use("/tsapi", router);
