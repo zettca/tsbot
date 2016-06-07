@@ -35,6 +35,8 @@ var movesList = [];
 var messageList = [];
 var tsBot = new tsClient(SERVER_ADDRESS);  // request sender handler
 
+/* ========== TSBOT AUX REQUESTS ========== */
+
 function sendCmd(cmd, params, callback){
   if (!cmd) return;
   let ingoredCmds = ["clientinfo"];
@@ -55,6 +57,16 @@ function sendCmd(cmd, params, callback){
   });
 }
 
+function sendPM(clid, msg){
+  sendCmd("sendtextmessage", { targetmode: 1, target: clid, msg: msg });
+}
+
+function getClientBy(prop, value){
+  for (let i=0; i<userList.length; i++)
+    if (userList[i][prop] == value)
+      return userList[i];
+}
+
 /* ========== API SERVER ========== */
 
 var app = express();
@@ -73,18 +85,13 @@ router.route("/ip/:key/:addr").get(function(req, res){
     res.send({error: {code: 401, msg: "Invalid API key."}});
     return;
   }
-  for (let i=0; i<userList.length; i++){
-    if (userList[i].connection_client_ip == req.params.addr){
-      res.send(userList[i]);
-      return;
-    }
-  }
+  let user = getClientBy("connection_client_ip", req.params.addr);
+  if (user) res.send(user);
   res.send({error: {code: 404, msg: "Address not found!", params: req.params}});
 });
 
 app.use("/tsapi", router);
-
-app.listen(process.env.PORT || 8081 || 9980);
+app.listen(9980);
 
 /* ========== BOT CONNECTION SETUP ========== */
 
@@ -103,9 +110,10 @@ sendCmd("login", { client_login_name: SERVERQ_USERNAME, client_login_password: S
     
     tsBot.on("textmessage", handleMessage);
     tsBot.on("clientmoved", handleChannelMove);
-    //listenCmd("clientexitview", handleUserExit);
-    //listenCmd("cliententerview", handleUserEnter);
+    //tsBot.on("clientexitview", handleUserExit);
+    //tsBot.on("cliententerview", handleUserEnter);
     
+    mainCheckupLoop();
     setInterval(mainCheckupLoop, TIME_CHECKUP_TICK);
   });
 });
@@ -137,7 +145,7 @@ function checkAFK(user){
   if (user.client_idle_time > TIME_AFK_LIMIT && skipCIDs.indexOf(user.cid) === -1){
     sendCmd("clientmove", { clid: user.clid, cid: CID_AFK }, function(res){
       log(user.client_nickname + " was moved to AFK...");
-      sendCmd("sendtextmessage", { targetmode: 1, target: user.clid, msg: "You were moved to AFK Room for idling for " + timeString(TIME_AFK_LIMIT) + "." });
+      sendPM(user.clid, "You were moved to AFK Room for idling for " + timeString(TIME_AFK_LIMIT));
     });
   }
 }
@@ -175,25 +183,19 @@ function handleGlobalMessage(msg){
   // Server Chat user mute (2 msgs under TIME_REPOST)
   if (thisMsg.invokerid === lastMsg.invokerid && thisMsg.time-lastMsg.time < TIME_REPOST){
     log(thisMsg.invokername + " triggered chat spam protection...");
-    sendCmd("sendtextmessage", { targetmode: 1, target: thisMsg.invokerid, msg: "Your ability to send server messages has been temporarily revoked. Please don't talk so fast next time!" });
-    sendCmd("clientinfo", { clid: thisMsg.invokerid }, function(res){
-      sendCmd("servergroupaddclient", { sgid: 18, cldbid: res.client_database_id });
-      setTimeout(function(){
-        sendCmd("servergroupdelclient", { sgid: 18, cldbid: res.client_database_id });
-      }, 2*TIME_DISABLE_CHAT);
+    let user = getClientBy("clid", thisMsg.invokerid);
+    sendCmd("servergroupaddclient", { sgid: 18, cldbid: user.client_database_id }, function(res){
+      setTimeout(sendCmd, 2*TIME_DISABLE_CHAT, "servergroupdelclient", { sgid: 18, cldbid: user.client_database_id });
+      sendPM(thisMsg.invokerid, "Your ability to send server messages has been temporarily revoked. Please don't text so fast next time!");
     });
   }
   
   // Server Chat global mutes
   if (messageList.length >= MAX_MESSAGES && messageList.shift() && thisMsg.time-firstMsg.time < TIME_MUTE){  // Last MAX_MESSAGES messages sent under TIME_MUTE
     log("Major spam detected. Disabling b_client_server_textmessage_send...");
-    sendCmd("sendtextmessage", { targetmode: 3, target: 1, msg: "Too much chatting detected! Permissions to write here were temporarily revoked." });
+    sendCmd("sendtextmessage", { targetmode: 3, target: 1, msg: "Too much chatting detected! Permissions to text here were temporarily revoked." });
     sendCmd("servergroupaddperm", { sgid: 9, permsid: "b_client_server_textmessage_send", permvalue: 0, permnegated: 0, permskip: 0 });
-    sendCmd("servergroupaddperm", { sgid: 15, permsid: "b_client_server_textmessage_send", permvalue: 0, permnegated: 0, permskip: 0 });
-    setTimeout(function(){
-      sendCmd("servergroupaddperm", { sgid: 9, permsid: "b_client_server_textmessage_send", permvalue: 1, permnegated: 0, permskip: 0 });
-      sendCmd("servergroupaddperm", { sgid: 15, permsid: "b_client_server_textmessage_send", permvalue: 1, permnegated: 0, permskip: 0 });
-    }, TIME_DISABLE_CHAT);
+    setTimeout(sendCmd, TIME_DISABLE_CHAT, "servergroupaddperm", { sgid: 9, permsid: "b_client_server_textmessage_send", permvalue: 1, permnegated: 0, permskip: 0 });
     messageList = [];
   }
 }
@@ -214,39 +216,33 @@ function handleChannelMove(move){
     return;
   }
   
+  
   let lastMove = movesList[movesList.length-1];
-  if (lastMove.ctid === move.ctid && lastMove.clid === move.clid) return;
+  if (lastMove.ctid === move.ctid && lastMove.clid === move.clid) return; // ignore duplicates
   
   movesList.push(move);
   if (movesList.length > 12) movesList.shift();
   let len = movesList.length;
-  
   if (len < NUM_CONSECUTIVE_MOVES) return;
   
-  let abuserID = lastMove.clid;
+  let abuserID = move.clid;
   for (let i=len-2; i>=len-NUM_CONSECUTIVE_MOVES; i--){
-    if (abuserID !== movesList[i].clid || movesList[i].invokerid){
+    if (abuserID != movesList[i].clid || movesList[i].invokerid !== undefined){
       abuserID = null;
       break;
     }
   }
   
-  if (abuserID && move.time - movesList[len-NUM_CONSECUTIVE_MOVES].time <= TIME_MOVESPAM){
-    log(move.clid + " triggered move spam protection...");
-    sendCmd("sendtextmessage", { targetmode: 1, target: move.clid, msg: "Your ability to change channel has been temporarily revoked. Please don't spam channel change next time!" });
-    sendCmd("clientinfo", { clid: move.clid }, function(res){
-      let user = res;
-      sendCmd("servergroupaddclient", { sgid: 24, cldbid: user.client_database_id }, function(res){
-        setTimeout(function(){
-          sendCmd("servergroupdelclient", { sgid: 24, cldbid: user.client_database_id });
-        }, TIME_DISABLE_MOVE);
-      });
-      sendCmd("clientmove", { clid: move.clid, cid: CID_HOME }, function(res){
-        log(user.client_nickname + " was moved to AFK...");
-      });
+  let timeDiff = move.time - movesList[len-NUM_CONSECUTIVE_MOVES].time;
+  if (abuserID &&  timeDiff <= TIME_MOVESPAM){
+    log(move.clid + " triggered join spam protection...");
+    let user = getClientBy("clid", move.clid);
+    sendCmd("servergroupaddclient", { sgid: 24, cldbid: user.client_database_id }, function(res){
+      setTimeout(sendCmd, TIME_DISABLE_MOVE, "servergroupdelclient", { sgid: 24, cldbid: user.client_database_id });
+      sendPM(move.clid, "Your ability to change channel has been temporarily revoked. Please don't spam channel change next time!");
+      sendCmd("clientmove", { clid: move.clid, cid: CID_HOME });
     });
   }
-  
 }
 
 function processRequests(message, callback){
@@ -321,6 +317,6 @@ function timeString(time){
   let timeDesc = ["ms", "seconds", "minutes", "hours", "days", "weeks", "years"];
   let timeDiv = [1000, 60, 60, 24, 7, 52.15];
   
-  for (var i=0; time>=timeDiv[i]; time /= timeDiv[i++]); // phew
+  for (var i=0; time>=timeDiv[i]; time /= timeDiv[i++]);
   return time + " " + ((time !== 1) ? timeDesc[i] : timeDesc[i].substring(0, timeDesc[i].length-1));
 }
